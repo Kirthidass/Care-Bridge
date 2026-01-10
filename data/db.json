@@ -1,0 +1,44 @@
+[
+  {
+    "id": "648262d7-ffb3-4342-b00a-c64584d7c1c6",
+    "filename": "sterling-accuris-pathology-sample-report-unlocked page1.pdf",
+    "upload_date": "2026-01-10T18:39:20.542475",
+    "type": "lab",
+    "parsed_data": {
+      "report_date": "2024-01-15",
+      "results": [
+        {
+          "test": "Hemoglobin",
+          "value": 12.5,
+          "unit": "g/dL"
+        },
+        {
+          "test": "WBC",
+          "value": 6.8,
+          "unit": "K/uL"
+        }
+      ]
+    }
+  },
+  {
+    "id": "609d3f2e-bc01-4e87-b6aa-5302f0cabe65",
+    "filename": "sterling-accuris-pathology-sample-report-unlocked.pdf",
+    "upload_date": "2026-01-10T21:37:15.827503",
+    "type": "lab",
+    "parsed_data": {
+      "report_date": "2024-01-15",
+      "results": [
+        {
+          "test": "Hemoglobin",
+          "value": 12.5,
+          "unit": "g/dL"
+        },
+        {
+          "test": "WBC",
+          "value": 6.8,
+          "unit": "K/uL"
+        }
+      ]
+    }
+  }
+]
