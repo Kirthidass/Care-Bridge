@@ -1,201 +1,285 @@
-# CARE-BRIDGE AI
+# 🏥 CareBridge AI
 
-> Your Healthcare Report Assistant - AI-Powered Medical Report Explanation
+> An intelligent medical report assistant that helps patients and healthcare providers understand medical documents — **without providing diagnoses**.
 
-## 🎯 Features
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-- **Role-Aware Explanations**: Different views for patients and clinicians
-- **Multimodal Report Parsing**: Upload PDF, PNG, or JPG medical reports
-- **AI-Powered Analysis**: Google ADK Agent with specialized tools
-- **RAG-Enhanced**: Grounded in CDC and RSNA medical guidelines
-- **Safety Checks**: Automatic detection of abnormal values
-- **Interactive Chat**: Ask questions about your reports
-- **Document Management**: Upload, view, and delete reports
+---
+
+## 📋 Overview
+
+CareBridge AI is a full-stack application that processes medical reports using OCR and AI to provide clear, role-appropriate explanations. The system uses a **RAG (Retrieval-Augmented Generation)** pipeline to store and retrieve document context, ensuring accurate and relevant responses.
+
+### ✨ Key Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Smart OCR Pipeline** | Extracts text from PDFs and images using Llama Vision models |
+| 📚 **RAG-Powered Context** | FAISS vector database for semantic document retrieval |
+| 🤖 **MiroThinker AI** | Llama 3.3 70B for intelligent explanations and Q&A |
+| 👥 **Role-Based Responses** | Tailored explanations for patients vs. healthcare providers |
+| ⚠️ **Safety First** | Strictly no medical diagnoses or treatment recommendations |
+| 📄 **Multi-Format Support** | Upload PDF, PNG, JPG medical reports |
+| 💬 **Interactive Chat** | Ask questions about your reports in natural language |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Frontend (React)                         │
+│                    Dashboard • Chat • Upload                    │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ REST API
+┌─────────────────────────▼───────────────────────────────────────┐
+│                     FastAPI Backend                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   OCR       │  │    RAG      │  │     MiroThinker         │  │
+│  │  Pipeline   │→ │   Store     │→ │   (Llama 3.3 70B)       │  │
+│  │ (Llama VLM) │  │  (FAISS)    │  │  Explain • Chat         │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 18, Vite, CSS |
+| **Backend** | FastAPI, Uvicorn, Python 3.10+ |
+| **OCR** | Llama 3.2 11B Vision (VLM mode), PyPDF |
+| **RAG** | FAISS, SentenceTransformers (all-MiniLM-L6-v2) |
+| **LLM** | Llama 3.3 70B Instruct via Hugging Face Router API |
+| **Database** | JSON file storage for metadata |
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.8+
-- Node.js 16+
-- npm or yarn
+- Python 3.10+
+- Node.js 18+
+- Hugging Face API key with **write** access
 
-### Installation
+### 1. Clone the Repository
 
-1. **Install Python Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Install Frontend Dependencies**
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-### Running the Application
-
-#### Option 1: Use Batch Files (Windows)
-
-1. Double-click `start_backend.bat` to start the backend server
-2. Double-click `start_frontend.bat` to start the frontend
-
-#### Option 2: Manual Start
-
-**Terminal 1 - Backend:**
 ```bash
+git clone https://github.com/sakthi44710/care-bridge.git
+cd care-bridge
+```
+
+### 2. Backend Setup
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate (Windows)
+.\venv\Scripts\activate
+
+# Activate (Linux/Mac)
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment
+
+Create a `.env` file in the root directory:
+
+```env
+HF_API_KEY=your_huggingface_api_key_here
+PORT=8000
+```
+
+### 4. Start Backend
+
+```bash
+cd app
 python main.py
 ```
 
-**Terminal 2 - Frontend:**
+The API will be available at `http://localhost:8000`
+
+### 5. Frontend Setup
+
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-### Access the Application
+The frontend will be available at `http://localhost:5173`
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://127.0.0.1:8000
-- **API Docs**: http://127.0.0.1:8000/docs
+---
 
-## 📖 Usage
+## 📡 API Endpoints
 
-1. **Login**: Enter any email and password (demo mode)
-2. **Select Role**: Choose Patient or Clinician mode
-3. **Upload Report**: Click "Upload New Report" and select a medical report
-4. **View Explanation**: See AI-generated explanation based on your role
-5. **Ask Questions**: Use the chat panel to ask about your report
-6. **Manage Documents**: Delete old reports from the Manage Documents page
+### Documents
 
-## 🏗️ Architecture
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/documents` | List all uploaded documents |
+| `POST` | `/api/documents/upload` | Upload a medical report (PDF/image) |
+| `GET` | `/api/documents/{id}` | Get document details |
+| `DELETE` | `/api/documents/{id}` | Delete a document |
 
-```
-┌─────────────────┐
-│  React Frontend │ (Port 5173)
-│   (Vite + React)│
-└────────┬────────┘
-         │ HTTP REST API
-         ↓
-┌─────────────────┐
-│  FastAPI Backend│ (Port 8000)
-│                 │
-│  ┌───────────┐  │
-│  │ Google ADK│  │
-│  │   Agent   │  │
-│  └─────┬─────┘  │
-│        │        │
-│  ┌─────┴─────┐  │
-│  │   Tools   │  │
-│  ├───────────┤  │
-│  │ • Parser  │  │ (Qwen3-VL)
-│  │ • RAG     │  │ (ChromaDB)
-│  │ • Safety  │  │ (Rule-based)
-│  │ • Explain │  │ (MiroThinker)
-│  └───────────┘  │
-└─────────────────┘
+### AI Features
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/explain` | Get AI explanation of a report |
+| `POST` | `/api/chat` | Chat with MiroThinker about reports |
+
+### Example: Chat Request
+
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What does my hemoglobin level mean?",
+    "document_id": "doc_123",
+    "role": "patient"
+  }'
 ```
 
-## 🔑 Key Technologies
+### Example: Response
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Vite, React Router, Axios |
-| Backend | FastAPI, Python 3.8+ |
-| AI/ML | Google ADK, Gemini 2.5 Flash, ChromaDB |
-| Vector DB | ChromaDB with SentenceTransformers |
-| Database | JSON file-based (for demo) |
+```json
+{
+  "response": "Your hemoglobin level indicates how much oxygen your blood can carry. I can help explain what the numbers mean, but please consult your doctor for any medical advice.",
+  "ai_powered": true,
+  "context_used": true
+}
+```
+
+---
+
+## 🔒 Safety & Ethics
+
+CareBridge AI is designed with strict safety guidelines:
+
+| ✅ **Will Do** | ❌ **Won't Do** |
+|---------------|----------------|
+| Explain medical terminology | Provide diagnoses |
+| Summarize report contents | Recommend treatments |
+| Answer general health questions | Interpret test results medically |
+| Clarify what tests measure | Replace professional medical advice |
+
+Every AI response includes a reminder to consult healthcare professionals for medical decisions.
+
+---
 
 ## 📁 Project Structure
 
 ```
 AiIgnite/
-├── main.py                 # FastAPI backend server
-├── requirements.txt        # Python dependencies
-├── start_backend.bat      # Backend startup script
-├── start_frontend.bat     # Frontend startup script
 ├── app/
-│   ├── core/              # Core agent & config
-│   ├── tools/             # AI tools (parser, RAG, safety, explainer)
-│   ├── db/                # Database models
-│   └── api/               # API endpoints
+│   ├── main.py              # FastAPI application entry point
+│   ├── api/
+│   │   └── endpoints.py     # API route handlers
+│   ├── core/
+│   │   ├── agent.py         # AI agent logic
+│   │   └── config.py        # Configuration
+│   ├── db/
+│   │   ├── database.py      # Database operations
+│   │   └── models.py        # Data models
+│   ├── tools/
+│   │   ├── explainer.py     # Explanation generation
+│   │   ├── parser.py        # Document parsing
+│   │   ├── rag.py           # RAG operations
+│   │   └── safety.py        # Safety filters
+│   └── utils/
+│       └── formatter.py     # Response formatting
 ├── data/
-│   ├── uploads/           # Uploaded reports
-│   ├── vector_db/         # ChromaDB storage
-│   └── raw_knowledge/     # Medical guidelines
-└── frontend/
-    ├── src/
-    │   ├── pages/         # React pages
-    │   ├── services/      # API client
-    │   └── App.jsx        # Main app component
-    └── package.json       # Node dependencies
+│   ├── db.json              # Document metadata
+│   ├── uploads/             # Uploaded files
+│   └── vector_db/           # FAISS index storage
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx          # Main React component
+│   │   ├── pages/           # Page components
+│   │   └── services/        # API client
+│   └── package.json
+├── requirements.txt
+└── README.md
 ```
-
-## 🎨 UI Features
-
-- **Modern Dashboard**: Clean, professional interface
-- **Role-Based Views**: Different experiences for patients and clinicians
-- **Test Results Table**: Visual display of lab values with status indicators
-- **AI Explanations**: Formatted, easy-to-read explanations
-- **Real-time Chat**: Ask follow-up questions about your report
-- **Document Management**: Full CRUD operations on medical reports
-
-## 🔒 Safety & Compliance
-
-- ✅ Non-diagnostic explanations only
-- ✅ Clear disclaimers on all pages
-- ✅ Safety checks for abnormal values
-- ✅ Citations to medical sources
-- ✅ Role-appropriate language
-
-## 🐛 Troubleshooting
-
-### Backend won't start
-- Check if port 8000 is available
-- Verify Python dependencies are installed
-- Check `requirements.txt` for missing packages
-
-### Frontend won't start
-- Check if port 5173 is available
-- Run `npm install` in the frontend directory
-- Clear npm cache: `npm cache clean --force`
-
-### API connection errors
-- Ensure backend is running on port 8000
-- Check CORS settings in `main.py`
-- Verify API base URL in `frontend/src/services/api.js`
-
-## 📝 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Health check |
-| POST | `/api/upload-report` | Upload a medical report |
-| GET | `/api/documents` | List all documents |
-| DELETE | `/api/document/{id}` | Delete a document |
-| GET | `/api/explain/{id}` | Get AI explanation |
-| POST | `/api/chat/{id}` | Chat about a report |
-| POST | `/api/rag/feed` | Add knowledge to RAG |
-
-## 🚧 Future Enhancements
-
-- [ ] Real AI model integration (currently using mock responses)
-- [ ] User authentication and authorization
-- [ ] PostgreSQL database integration
-- [ ] PDF report generation
-- [ ] Email notifications
-- [ ] Multi-language support
-- [ ] EHR system integration
-- [ ] Mobile app (React Native)
-
-## 📄 License
-
-This is a demo project for educational purposes.
-
-## 👨‍💻 Author
-
-CARE-BRIDGE AI - Healthcare Report Assistant
 
 ---
 
-**Disclaimer**: This application is for demonstration purposes only and should not be used for actual medical diagnosis or treatment.
+## 🛠️ Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HF_API_KEY` | Hugging Face API key | Required |
+| `PORT` | Backend server port | `8000` |
+| `HF_LLM_MODEL_ID` | LLM model for chat/explain | `meta-llama/Llama-3.3-70B-Instruct` |
+| `HF_OCR_VLM_MODEL_ID` | Vision model for OCR | `meta-llama/Llama-3.2-11B-Vision-Instruct` |
+| `HF_OCR_MODE` | OCR mode (`vlm` or `ocr`) | `vlm` |
+
+### Model Fallback Chain
+
+If the primary model is unavailable, the system falls back to:
+1. `meta-llama/Llama-3.3-70B-Instruct` (primary)
+2. `Qwen/Qwen2.5-7B-Instruct` (fallback)
+
+---
+
+## 🧪 Development
+
+### Run Backend Tests
+
+```bash
+cd app
+python -m pytest tests/
+```
+
+### Code Quality
+
+```bash
+# Python linting
+pip install ruff
+ruff check app/
+
+# Frontend linting
+cd frontend
+npm run lint
+```
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## ⚠️ Disclaimer
+
+**CareBridge AI is not a substitute for professional medical advice, diagnosis, or treatment.** Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of information provided by this application.
+
+---
+
+<p align="center">
+  Made with ❤️ for better healthcare understanding
+</p>
