@@ -19,7 +19,7 @@ CareBridge AI is a full-stack application that processes medical reports using O
 |---------|-------------|
 | 🔍 **Smart OCR Pipeline** | Extracts text from PDFs and images using Llama Vision models |
 | 📚 **RAG-Powered Context** | FAISS vector database for semantic document retrieval |
-| 🤖 **MiroThinker AI** | Llama 3.3 70B for intelligent explanations and Q&A |
+| 🤖 **Llama 3.3 70B AI** | Intelligent explanations and Q&A powered by Meta's Llama |
 | 👥 **Role-Based Responses** | Tailored explanations for patients vs. healthcare providers |
 | ⚠️ **Safety First** | Strictly no medical diagnoses or treatment recommendations |
 | 📄 **Multi-Format Support** | Upload PDF, PNG, JPG medical reports |
@@ -38,7 +38,7 @@ CareBridge AI is a full-stack application that processes medical reports using O
 ┌─────────────────────────▼───────────────────────────────────────┐
 │                     FastAPI Backend                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   OCR       │  │    RAG      │  │     MiroThinker         │  │
+│  │   OCR       │  │    RAG      │  │     Llama LLM           │  │
 │  │  Pipeline   │→ │   Store     │→ │   (Llama 3.3 70B)       │  │
 │  │ (Llama VLM) │  │  (FAISS)    │  │  Explain • Chat         │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
@@ -135,7 +135,7 @@ The frontend will be available at `http://localhost:5173`
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/explain` | Get AI explanation of a report |
-| `POST` | `/api/chat` | Chat with MiroThinker about reports |
+| `POST` | `/api/chat` | Chat with Llama AI about reports |
 
 ### Example: Chat Request
 
