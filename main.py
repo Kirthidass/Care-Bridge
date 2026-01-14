@@ -1,7 +1,8 @@
 """
-CARE-BRIDGE AI Backend - Hugging Face API
-==========================================
+CARE-BRIDGE AI Backend - Hugging Face API + Multi-Agent System
+===============================================================
 Uses Hugging Face Inference API for all AI operations
+Features multi-agent orchestration with role-based specialized agents
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -31,6 +32,15 @@ import numpy as np
 
 import faiss
 from sentence_transformers import SentenceTransformer
+
+# Import multi-agent system
+from app.core.agent import (
+    create_care_bridge_agent,
+    create_supervisory_agent,
+    PatientAgent,
+    ClinicianAgent,
+    SupervisoryAgent
+)
 
 _here = os.path.dirname(os.path.abspath(__file__))
 # Load env from common locations; override=True so key changes take effect.
@@ -73,6 +83,11 @@ HF_CLIENT: Optional[AsyncInferenceClient] = (
     # Still used for non-chat tasks (e.g., image_to_text) when enabled.
     AsyncInferenceClient(api_key=HF_API_KEY, timeout=60) if HF_API_KEY else None
 )
+
+# ==================== MULTI-AGENT SYSTEM ====================
+# Initialize supervisory agent for orchestration
+supervisory_agent = create_supervisory_agent()
+print("✓ Multi-Agent System Initialized (Patient Agent + Clinician Agent + Supervisory Agent)")
 
 # ==================== RAG (FAISS) ====================
 
@@ -509,6 +524,10 @@ def _rag_delete_report(report_id: str) -> int:
 
 
 async def miro_thinker_explain(report_id: str, role: str) -> tuple[str, bool]:
+    """
+    Generate report explanation using multi-agent system
+    Routes to appropriate agent based on role for differentiated analysis
+    """
     role = _normalize_role(role)
     context_chunks = _rag_retrieve_report(
         report_id,
@@ -523,46 +542,116 @@ async def miro_thinker_explain(report_id: str, role: str) -> tuple[str, bool]:
             "<p>If this is a scanned PDF/image, install <code>PyMuPDF</code> so OCR can run, then re-upload.</p>"
         ), False
 
-    # Keep prompt bounded
+    # Keep context bounded
     max_context = 6000
     context = context[:max_context]
-    system_msg = (
-        "You are Care-Bridge Assistant, a medical report explainer. "
-        + _role_instructions(role)
-        + "\n\n"
-        + _safety_instructions()
-    )
-    user_msg = f"""Task: Produce an HTML explanation of this report.
-Must include:
-- Short overview (2-4 sentences)
-- Key findings (bullet list)
-- What each key measurement likely refers to (brief)
-- Questions to ask a clinician (bullet list)
-- A clear disclaimer that this is educational and not medical advice
+    
+    # Use multi-agent system for role-specific analysis
+    try:
+        # Prepare agent context
+        agent_context = {
+            "report_data": context,
+            "report_id": report_id
+        }
+        
+        # Create role-specific prompt
+        if role == "provider":
+            # Clinician-focused prompt
+            prompt = """Provide a comprehensive clinical analysis of this medical report in HTML format.
+
+Required sections:
+1. <h3>Clinical Summary</h3> - Brief clinical overview with key findings
+2. <h3>Laboratory/Diagnostic Analysis</h3> - Detailed breakdown of results with clinical interpretation
+3. <h3>Abnormal Values & Clinical Significance</h3> - Highlight abnormalities with differential considerations
+4. <h3>Recommended Follow-up</h3> - Suggested additional workup or monitoring
+5. <h3>Clinical Considerations</h3> - Risk stratification, guidelines, evidence-based notes
+
+Use medical terminology appropriately. Provide technical depth suitable for healthcare providers.
+Include reference ranges, percentages above/below normal limits, and clinical context.
+Format with proper HTML tags for readability."""
+        else:
+            # Patient-focused prompt
+            prompt = """Explain this medical report in simple, easy-to-understand language using HTML format.
+
+Required sections:
+1. <h3>📋 What This Report Shows</h3> - Brief overview in plain English
+2. <h3>🔍 Your Test Results</h3> - Explain each key test and what it measures
+3. <h3>⚠️ What to Know</h3> - Highlight anything outside normal range (in simple terms)
+4. <h3>❓ Questions for Your Doctor</h3> - Helpful questions to ask
+5. <h3>ℹ️ Next Steps</h3> - General guidance on what typically comes next
+
+Use everyday language. Avoid medical jargon. Be empathetic and reassuring.
+Explain concepts like you're talking to a family member.
+Format with HTML tags and emojis for friendliness."""
+        
+        # Route through supervisory agent
+        result = supervisory_agent.route_request(role, prompt, agent_context)
+        
+        if result and len(result.strip()) > 50:
+            return result, True
+        else:
+            # Fallback to traditional method if agent fails
+            raise Exception("Agent returned insufficient response")
+            
+    except Exception as e:
+        print(f"Multi-agent explanation error: {e}")
+        # Fallback to traditional HuggingFace method
+        system_msg = (
+            "You are Care-Bridge Assistant, a medical report explainer. "
+            + _role_instructions(role)
+            + "\n\n"
+            + _safety_instructions()
+        )
+        
+        if role == "provider":
+            user_msg = f"""Task: Produce an HTML clinical analysis of this report.
+Include:
+- Clinical summary with key findings
+- Detailed laboratory/diagnostic analysis
+- Abnormal values with clinical significance
+- Differential considerations (educational)
+- Recommended follow-up workup
+- Use medical terminology appropriately
+
+Report text (grounding):
+{context}
+""".strip()
+        else:
+            user_msg = f"""Task: Produce an HTML explanation of this report for a patient.
+Include:
+- Short overview (2-4 sentences) in plain English
+- Key findings (bullet list) with simple explanations
+- What each measurement means in everyday terms
+- Questions to ask their doctor (bullet list)
+- Clear educational disclaimer
 
 STRICT RULES:
 - Do NOT diagnose.
 - Do NOT provide treatment plans or medication changes.
-- If the report is unclear or missing details, say so.
-- Ground your answer only in the report text provided.
+- Use simple language, avoid jargon.
 
 Report text (grounding):
 {context}
 """.strip()
 
-    result = await call_huggingface_chat(
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": user_msg},
-        ],
-        max_tokens=650,
-    )
-    if result:
-        return result, True
+        result = await call_huggingface_chat(
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg},
+            ],
+            max_tokens=650,
+        )
+        if result:
+            return result, True
+    
     return "<h3>Report Summary</h3><p>AI is unavailable right now. Please try again later.</p>", False
 
 
 async def miro_thinker_chat(report_id: str, question: str, role: str) -> tuple[str, bool]:
+    """
+    Handle chat queries using multi-agent system
+    Provides role-appropriate responses
+    """
     role = _normalize_role(role)
     q = (question or "").strip()
     if not q:
@@ -578,15 +667,43 @@ async def miro_thinker_chat(report_id: str, question: str, role: str) -> tuple[s
 
     # Keep context bounded
     context = context[:5000]
+    
+    # Try multi-agent system first
+    try:
+        agent_context = {
+            "report_data": context,
+            "report_id": report_id
+        }
+        result = supervisory_agent.route_request(role, q, agent_context)
+        if result and len(result.strip()) > 20:
+            return result, True
+    except Exception as e:
+        print(f"Multi-agent chat error: {e}")
+    
+    # Fallback to traditional method
     system_msg = (
         "You are Care-Bridge Assistant, a medical report assistant. "
         + _role_instructions(role)
         + "\n\n"
         + _safety_instructions()
     )
-    user_msg = f"""Answer efficiently: 3-8 sentences max.
-Ground your answer ONLY in the provided report excerpts. If the excerpts don't contain the answer, say so.
-If asked to diagnose or prescribe, refuse and instead explain what the report text says.
+    
+    if role == "provider":
+        user_msg = f"""Answer concisely with clinical focus (3-8 sentences).
+Use medical terminology appropriately. Provide clinical interpretation.
+Ground answer ONLY in provided report excerpts.
+
+REPORT EXCERPTS:
+{context}
+
+CLINICAL QUERY:
+{q}
+""".strip()
+    else:
+        user_msg = f"""Answer in simple language (3-8 sentences).
+Explain medical terms in everyday words. Be empathetic and clear.
+Ground answer ONLY in provided report excerpts. If asked to diagnose or prescribe, 
+refuse and instead explain what the report shows.
 
 REPORT EXCERPTS:
 {context}
@@ -844,17 +961,88 @@ async def get_explanation(report_id: str, role: str = "patient"):
 
 @app.post("/api/chat/{report_id}")
 async def chat_with_report(report_id: str, question: str, role: str = "patient"):
-    """Chat about a report"""
+    """
+    Chat about a report using Multi-Agent System
+    Routes to appropriate specialized agent based on role
+    """
     report = get_report_by_id(report_id)
     if not report:
         raise HTTPException(404, "Report not found")
 
     role = _normalize_role(role)
-
-    # Generate response grounded in RAG (OCR'd report)
-    answer, ai_powered = await miro_thinker_chat(report_id, question, role)
     
-    return {"answer": answer, "report_id": report_id, "ai_powered": ai_powered}
+    # Retrieve context from RAG
+    context_chunks = _rag_retrieve_report(report_id, query=question, k=5)
+    context_text = "\n\n".join(context_chunks)[:5000]  # Limit context size
+    
+    # Prepare context for agent
+    agent_context = {
+        "report_data": context_text,
+        "report_id": report_id,
+        "report_type": report.get("type", "medical report"),
+        "report_date": report.get("date", "unknown")
+    }
+    
+    # Route request through supervisory agent
+    try:
+        answer = supervisory_agent.route_request(role, question, agent_context)
+        ai_powered = True
+    except Exception as e:
+        print(f"Agent Error: {e}")
+        # Fallback to traditional method
+        answer, ai_powered = await miro_thinker_chat(report_id, question, role)
+    
+    return {
+        "answer": answer, 
+        "report_id": report_id, 
+        "ai_powered": ai_powered,
+        "agent_used": role.upper() + "_AGENT"
+    }
+
+@app.get("/api/agent/capabilities/{role}")
+async def get_agent_capabilities(role: str):
+    """
+    Get capabilities and tools available for a specific agent role
+    """
+    role = _normalize_role(role)
+    capabilities = supervisory_agent.get_agent_capabilities(role)
+    
+    return {
+        "role": role,
+        "capabilities": capabilities,
+        "available_roles": ["patient", "clinician", "provider", "doctor", "nurse"]
+    }
+
+@app.post("/api/agent/compare")
+async def compare_agents(question: str, report_id: Optional[str] = None):
+    """
+    Run the same query through both patient and clinician agents for comparison
+    Useful for testing and quality assurance
+    """
+    agent_context = {}
+    
+    if report_id:
+        report = get_report_by_id(report_id)
+        if report:
+            context_chunks = _rag_retrieve_report(report_id, query=question, k=5)
+            context_text = "\n\n".join(context_chunks)[:5000]
+            agent_context = {
+                "report_data": context_text,
+                "report_id": report_id
+            }
+    
+    # Get responses from both agents
+    responses = supervisory_agent.multi_agent_consultation(question, agent_context)
+    
+    return {
+        "question": question,
+        "patient_response": responses["patient_perspective"],
+        "clinician_response": responses["clinician_perspective"],
+        "comparison": {
+            "patient_style": "Simple, empathetic, safety-focused",
+            "clinician_style": "Technical, clinical, advanced analysis"
+        }
+    }
 
 @app.post("/api/rag/feed")
 async def feed_knowledge(text: str, source: str = "manual"):
